@@ -1,5 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><title>PDF 轉黑白工具</title>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500&display=swap" rel="stylesheet">
+<title>PDF 工具</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:"Microsoft JhengHei","Noto Sans TC",sans-serif;background:#eef1f5;color:#222;height:100vh;display:flex;flex-direction:column}
 header{background:#2b3a55;color:#fff;padding:8px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -22,18 +26,30 @@ fieldset{border:1px solid #ccc;border-radius:6px;margin:8px 0}#drop{flex:1;displ
 #status{font-size:13px}
 @media (max-width:820px){body{height:auto;min-height:100vh}main{flex-direction:column}#thumbs{width:auto;display:flex;overflow-x:auto;overflow-y:hidden;gap:6px;height:auto}
 #thumbs canvas{width:60px;flex:none}#thumbs div{display:none}aside{width:auto;border-left:0;border-top:1px solid #ccc}#center{min-height:70vh}
-header h1{font-size:16px}header{gap:6px;padding:6px}button,select{padding:4px 7px}#mergeBox .card{width:95vw}}
+header h1{font-size:16px}header{gap:6px;padding:6px}button,select{padding:4px 7px}#mergeBox .card,#pageNumBox .card{width:95vw}}
 @media (max-width:560px){#view.side{flex-direction:column}#view.side .sc{min-height:40vh}}.hint{font-size:12px;color:#777}
 #mergeBox{position:fixed;inset:0;background:#0006;display:none;align-items:center;justify-content:center;z-index:9}
 #mergeBox .card{background:#fff;border-radius:10px;padding:16px;width:620px;max-height:85vh;overflow:auto}
 #mlist{list-style:none;padding:0;min-height:60px;border:2px dashed #aaa;border-radius:6px}#mlist li{display:flex;gap:6px;align-items:center;padding:6px;border-bottom:1px solid #eee;background:#fafafa;cursor:move}
 #mlist li span{flex:1}#mlist li.drag{opacity:.4}
+
+#pageNumBox{position:fixed;inset:0;background:#0006;display:none;align-items:center;justify-content:center;z-index:9}
+#pageNumBox .card{background:#fff;border-radius:10px;padding:16px;width:720px;max-width:96vw;max-height:90vh;overflow:auto}
+#pageNumBox .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:8px 0}
+#pageNumBox .row>div{flex:1;min-width:120px}
+#pageNumBox label{display:block;margin:6px 0 2px;font-size:14px}
+#pageNumBox input[type=number],#pageNumBox input[type=text],#pageNumBox select{width:100%;padding:5px 8px;border:1px solid #aaa;border-radius:5px;font:inherit}
+#pageNumBox input[type=color]{width:48px;height:32px;padding:0;border:1px solid #aaa;border-radius:5px}
+#pnPreviewWrap{position:relative;display:inline-block;border:1px solid #ccc;background:#cfd5de;max-width:100%;line-height:0;cursor:crosshair;user-select:none;touch-action:none}
+#pnPreviewWrap canvas{display:block;max-width:100%;height:auto}
+#pnMarker{position:absolute;transform:translate(-50%,-50%);pointer-events:none;background:#2d7be5ee;color:#fff;font-size:12px;padding:2px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 4px #0004}
+#pnCustomBlock{display:none;margin-top:8px}
 </style></head><body>
-<header><h1>PDF 轉黑白工具</h1>
+<header><h1>PDF 工具</h1>
 <button id="openBtn">開啟 PDF</button><input type="file" id="file" accept="application/pdf" hidden>
 <button id="prev">◀ 上一頁</button><span id="pageInfo">-</span><button id="next">下一頁 ▶</button>
 <select id="cmpMode"><option value="side">並排比對</option><option value="slide">滑桿重疊比對</option><option value="bw">只看黑白</option></select>
-<button id="mergeBtn">PDF 合併</button><button id="exportBtn" class="primary">輸出 PDF</button><span id="status">所有處理都在本機完成，不會上傳</span></header>
+<button id="mergeBtn">PDF 合併</button><button id="pageNumBtn">加頁碼</button><button id="exportBtn" class="primary">輸出 PDF</button><span id="status">所有處理都在本機完成，不會上傳</span></header>
 <main><div id="thumbs"></div><div id="center"><div id="zoombar"><button id="zOut">－</button><select id="zSel"></select><button id="zIn">＋</button>
 <button id="fitW">符合寬度</button><button id="fitP">符合頁面</button><span class="hint">Ctrl＋滾輪或雙指縮放，放大後可拖曳捲動</span></div>
 <div id="view"><div id="drop">把 PDF 拖曳到這裡，或按「開啟 PDF」</div></div></div>
@@ -58,6 +74,56 @@ header h1{font-size:16px}header{gap:6px;padding:6px}button,select{padding:4px 7p
 <ul id="mlist"></ul><div id="mInfo" class="hint"></div>
 <label><input type="checkbox" id="mBw"> 合併後轉黑白（合併完載入主畫面調整再輸出）</label><br><br>
 <button id="mGo" class="primary">合併輸出</button> <button id="mClose">關閉</button></div></div>
+
+<div id="pageNumBox"><div class="card"><h2 style="margin-top:0">加入自訂頁碼</h2>
+<button id="pnAdd">選擇 PDF</button><input type="file" id="pnFile" accept="application/pdf" hidden>
+<span id="pnInfo" class="hint">尚未選擇檔案</span>
+<div class="row">
+<div><label>頁碼格式</label><select id="pnPreset">
+<option value="{n}">1</option>
+<option value="第 {n} 頁">第 1 頁</option>
+<option value="第 {n} 頁 / 共 {total} 頁" selected>第 1 頁 / 共 N 頁</option>
+<option value="- {n} -">- 1 -</option>
+<option value="{n} / {total}">1 / N</option>
+<option value="custom">自訂…</option>
+</select></div>
+<div><label>自訂格式（可用 {n}、{total}）</label><input type="text" id="pnFmt" value="第 {n} 頁 / 共 {total} 頁"></div>
+</div>
+<div class="row">
+<div><label>起始號碼</label><input type="number" id="pnStart" value="1" min="0" step="1"></div>
+<div><label>從第幾頁</label><input type="number" id="pnFrom" value="1" min="1" step="1"></div>
+<div><label>到第幾頁</label><input type="number" id="pnTo" value="1" min="1" step="1"></div>
+</div>
+<div class="hint">例如封面不要頁碼：從第 2 頁開始。號碼會從「起始號碼」依序往下編。</div>
+<div class="row">
+<div><label>位置</label><select id="pnPos">
+<option value="bottom-center">下方置中</option>
+<option value="bottom-left">下方靠左</option>
+<option value="bottom-right">下方靠右</option>
+<option value="top-center">上方置中</option>
+<option value="top-left">上方靠左</option>
+<option value="top-right">上方靠右</option>
+<option value="custom">自訂位置（點選／拖曳）</option>
+</select></div>
+<div><label>邊距（mm）</label><input type="number" id="pnMargin" value="12" min="0" step="0.5"></div>
+<div><label>字級（pt）</label><input type="number" id="pnSize" value="11" min="6" max="72" step="0.5"></div>
+<div><label>顏色</label><input type="color" id="pnColor" value="#333333"></div>
+</div>
+<label><input type="checkbox" id="pnMirror"> 奇偶頁左右對調（雙面列印）</label>
+<div class="hint">勾選後：奇數頁維持設定位置，偶數頁左右鏡像。置中不受影響。</div>
+<div id="pnCustomBlock">
+<label>自訂座標（從左下角算起，單位 mm）</label>
+<div class="row">
+<div><label>X（距左）</label><input type="number" id="pnX" value="105" min="0" step="0.1"></div>
+<div><label>Y（距下）</label><input type="number" id="pnY" value="12" min="0" step="0.1"></div>
+</div>
+<div class="hint">在下方預覽點一下或拖曳藍點，調整頁碼位置（對齊文字中心）。</div>
+<div id="pnPreviewWrap"><canvas id="pnPreview"></canvas><div id="pnMarker">頁碼</div></div>
+</div>
+<br>
+<button id="pnGo" class="primary">產生並下載</button> <button id="pnClose">關閉</button>
+<p class="hint" style="margin-top:10px">處理都在本機完成，不會上傳。中文頁碼以影像嵌入，相容性較佳。</p>
+</div></div>
 <script type="text/plain" id="workerSrc">/**
  * @licstart The following is the entire license notice for the
  * JavaScript code in this page
@@ -624,5 +690,175 @@ $('mGo').onclick=async()=>{if(mItems.length<2)return alert('請至少加入 2 �
   if($('mBw').checked){$('mergeBox').style.display='none';await loadPdf(bytes.slice().buffer,name+'.pdf');$('status').textContent+='　合併完成，請調整後按「輸出 PDF」'}
   else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));a.download=name+'.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}}
  catch(e){alert('合併失敗：'+e.message)}finally{$('mGo').disabled=false}};
+
+/* ===== 加頁碼工具 ===== */
+const MM=72/25.4;
+let pnBuf=null,pnName='document',pnDocPages=0,pnPreviewPdf=null,pnPrevScale=1,pnPageSize={w:595.28,h:841.89},pnDrag=false;
+
+function pnFmtText(){
+  const preset=$('pnPreset').value;
+  return preset==='custom'?$('pnFmt').value:$('pnPreset').value;
+}
+function pnFill(tpl,n,total){return String(tpl).replaceAll('{n}',String(n)).replaceAll('{total}',String(total))}
+function pnNeedsCustomUI(){$('pnCustomBlock').style.display=$('pnPos').value==='custom'?'block':'none'}
+function pnSyncFmt(){
+  if($('pnPreset').value!=='custom')$('pnFmt').value=$('pnPreset').value;
+  $('pnFmt').disabled=$('pnPreset').value!=='custom';
+  pnUpdateMarker();
+}
+async function pnLoadFile(f){
+  if(!f)return;
+  pnBuf=await f.arrayBuffer();pnName=f.name.replace(/\.pdf$/i,'');
+  try{
+    const doc=await PDFLib.PDFDocument.load(pnBuf.slice(0),{ignoreEncryption:true});
+    pnDocPages=doc.getPageCount();
+    $('pnInfo').textContent=f.name+'（共 '+pnDocPages+' 頁）';
+    $('pnFrom').value=1;$('pnTo').value=pnDocPages;
+    const p0=doc.getPage(0),sz=p0.getSize();pnPageSize={w:sz.width,h:sz.height};
+    $('pnX').value=(sz.width/MM/2).toFixed(1);$('pnY').value='12';
+  }catch(e){alert('無法讀取 PDF：'+e.message);pnBuf=null;return}
+  try{pnPreviewPdf=await pdfjsLib.getDocument({data:pnBuf.slice(0)}).promise}catch(e){pnPreviewPdf=null}
+  await pnRenderPreview();pnUpdateMarker();
+}
+async function pnRenderPreview(){
+  const cv=$('pnPreview'),wrap=$('pnPreviewWrap');
+  const maxW=Math.min(640,wrap.parentElement.clientWidth||640);
+  if(pnPreviewPdf){
+    const page=await pnPreviewPdf.getPage(1);
+    const base=page.getViewport({scale:1});
+    pnPageSize={w:base.width,h:base.height};
+    pnPrevScale=Math.min(1.2,maxW/base.width);
+    const vp=page.getViewport({scale:pnPrevScale});
+    cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);
+    const ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);
+    await page.render({canvasContext:ctx,viewport:vp}).promise;
+  }else{
+    const aspect=pnPageSize.h/pnPageSize.w;cv.width=maxW;cv.height=Math.round(maxW*aspect);
+    pnPrevScale=cv.width/pnPageSize.w;
+    const ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.strokeStyle='#999';ctx.strokeRect(0.5,0.5,cv.width-1,cv.height-1);
+    ctx.fillStyle='#bbb';ctx.font='14px sans-serif';ctx.fillText('頁面預覽',12,24);
+  }
+  pnUpdateMarker();
+}
+function pnUpdateMarker(){
+  const mk=$('pnMarker');if(!mk)return;
+  mk.textContent=pnFill(pnFmtText(),+$('pnStart').value||1,pnDocPages||1)||'頁碼';
+  const cv=$('pnPreview');if(!cv.width)return;
+  let cx,cy;
+  if($('pnPos').value==='custom'){
+    const xPt=(+$('pnX').value||0)*MM,yPt=(+$('pnY').value||0)*MM;
+    cx=xPt*pnPrevScale;cy=cv.height-yPt*pnPrevScale;
+  }else{
+    const pos=$('pnPos').value,margin=(+$('pnMargin').value||0)*MM*pnPrevScale;
+    const top=pos.startsWith('top'),horiz=pos.split('-')[1];
+    cy=top?margin:cv.height-margin;
+    cx=horiz==='left'?margin:horiz==='right'?cv.width-margin:cv.width/2;
+  }
+  mk.style.left=cx+'px';mk.style.top=cy+'px';
+}
+function pnSetXYFromEvent(e){
+  const cv=$('pnPreview'),r=cv.getBoundingClientRect();
+  const clientX=e.touches?e.touches[0].clientX:e.clientX;
+  const clientY=e.touches?e.touches[0].clientY:e.clientY;
+  let px=(clientX-r.left)/r.width*cv.width,py=(clientY-r.top)/r.height*cv.height;
+  px=Math.max(0,Math.min(cv.width,px));py=Math.max(0,Math.min(cv.height,py));
+  const xMm=px/pnPrevScale/MM,yMm=(cv.height-py)/pnPrevScale/MM;
+  $('pnX').value=xMm.toFixed(1);$('pnY').value=yMm.toFixed(1);
+  pnUpdateMarker();
+}
+function pnMakeTextPng(text,fontSizePt,color){
+  const scale=3;
+  const font=`${fontSizePt*scale}px "Noto Sans TC","Microsoft JhengHei","PingFang TC","Source Han Sans TC",sans-serif`;
+  const probe=document.createElement('canvas').getContext('2d');probe.font=font;
+  const m=probe.measureText(text);
+  const pad=Math.ceil(2*scale);
+  const cv=document.createElement('canvas');
+  cv.width=Math.max(1,Math.ceil(m.width)+pad*2);
+  cv.height=Math.max(1,Math.ceil(fontSizePt*scale*1.35)+pad*2);
+  const ctx=cv.getContext('2d');
+  ctx.font=font;ctx.fillStyle=color;ctx.textBaseline='top';
+  ctx.fillText(text,pad,pad);
+  return new Promise(res=>cv.toBlob(b=>{const fr=new FileReader();fr.onload=()=>res({bytes:new Uint8Array(fr.result),w:cv.width/scale,h:cv.height/scale,cw:cv.width,ch:cv.height});fr.readAsArrayBuffer(b)},'image/png'));
+}
+function pnComputeXY(pageW,pageH,imgW,imgH,pageIndex1){
+  const margin=(+$('pnMargin').value||0)*MM;
+  const pos=$('pnPos').value;
+  let x,y,anchorCenter=false;
+  if(pos==='custom'){
+    x=(+$('pnX').value||0)*MM - imgW/2;
+    y=(+$('pnY').value||0)*MM - imgH/2;
+    anchorCenter=true;
+  }else{
+    const top=pos.startsWith('top'),horiz=pos.split('-')[1];
+    y=top?pageH-margin-imgH:margin;
+    x=horiz==='left'?margin:horiz==='right'?pageW-margin-imgW:(pageW-imgW)/2;
+  }
+  if($('pnMirror').checked && (pos==='custom' || !pos.endsWith('-center'))){
+    if(pageIndex1%2===0){ // even page mirror
+      if(anchorCenter){
+        const cx=x+imgW/2; x=(pageW-cx)-imgW/2;
+      }else{
+        x=pageW-x-imgW;
+      }
+    }
+  }
+  return {x,y};
+}
+async function pnBuild(){
+  if(!pnBuf)throw new Error('請先選擇 PDF');
+  const from=Math.max(1,+$('pnFrom').value||1);
+  const to=Math.min(pnDocPages,+$('pnTo').value||pnDocPages);
+  if(from>to)throw new Error('頁面範圍不正確');
+  const start=+$('pnStart').value; if(!Number.isFinite(start))throw new Error('起始號碼無效');
+  const total=pnDocPages;
+  const tpl=pnFmtText();
+  const fontSize=+$('pnSize').value||11;
+  const color=$('pnColor').value||'#333333';
+  const doc=await PDFLib.PDFDocument.load(pnBuf.slice(0),{ignoreEncryption:true});
+  const pages=doc.getPages();
+  for(let i=from;i<=to;i++){
+    const n=start+(i-from);
+    const text=pnFill(tpl,n,total);
+    if(!text)continue;
+    const img=await pnMakeTextPng(text,fontSize,color);
+    const embedded=await doc.embedPng(img.bytes);
+    const page=pages[i-1];
+    const {width:pw,height:ph}=page.getSize();
+    const {x,y}=pnComputeXY(pw,ph,img.w,img.h,i);
+    page.drawImage(embedded,{x,y,width:img.w,height:img.h});
+  }
+  return await doc.save();
+}
+$('pageNumBtn').onclick=()=>{$('pageNumBox').style.display='flex';pnNeedsCustomUI();pnSyncFmt();if(pnBuf)pnRenderPreview()};
+$('pnClose').onclick=()=>{$('pageNumBox').style.display='none'};
+$('pnAdd').onclick=()=>$('pnFile').click();
+$('pnFile').onchange=e=>{const f=e.target.files[0];if(f)pnLoadFile(f);e.target.value=''};
+$('pnPreset').onchange=pnSyncFmt;$('pnFmt').oninput=pnUpdateMarker;
+['pnStart','pnPos','pnMargin','pnX','pnY','pnSize'].forEach(id=>$(id).addEventListener('input',()=>{pnNeedsCustomUI();pnUpdateMarker()}));
+$('pnPos').addEventListener('change',()=>{pnNeedsCustomUI();pnUpdateMarker()});
+$('pnMirror').onchange=pnUpdateMarker;
+const wrap=$('pnPreviewWrap');
+wrap.addEventListener('mousedown',e=>{if($('pnPos').value!=='custom'){$('pnPos').value='custom';pnNeedsCustomUI()}pnDrag=true;pnSetXYFromEvent(e);e.preventDefault()});
+window.addEventListener('mousemove',e=>{if(pnDrag)pnSetXYFromEvent(e)});
+window.addEventListener('mouseup',()=>{pnDrag=false});
+wrap.addEventListener('touchstart',e=>{if($('pnPos').value!=='custom'){$('pnPos').value='custom';pnNeedsCustomUI()}pnDrag=true;pnSetXYFromEvent(e);},{passive:false});
+wrap.addEventListener('touchmove',e=>{if(pnDrag){pnSetXYFromEvent(e);e.preventDefault()}},{passive:false});
+wrap.addEventListener('touchend',()=>{pnDrag=false});
+$('pnGo').onclick=async()=>{
+  if(!pnBuf)return alert('請先選擇 PDF');
+  $('pnGo').disabled=true;$('status').textContent='正在加入頁碼…';
+  try{
+    const bytes=await pnBuild();
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+    a.download=pnName+'_頁碼.pdf';a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),8000);
+    $('status').textContent='完成：'+pnName+'_頁碼.pdf';
+  }catch(e){alert('加頁碼失敗：'+e.message);console.error(e)}
+  finally{$('pnGo').disabled=false}
+};
+window.__testPageNum={pnLoadFile,pnBuild,pnFill,pnComputeXY,get pages(){return pnDocPages},get buf(){return pnBuf}};
+
 labels();window.__test={loadPdf,buildPdf,setZoom,get zoom(){return zoom},get pdf(){return pdf}};
 </script></body></html>
